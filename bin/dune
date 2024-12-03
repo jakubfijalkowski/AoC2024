@@ -1,4 +1,4 @@
 (executable
  (public_name aoc2024)
  (name main)
- (libraries aoc2024))
+ (libraries aoc2024 re))

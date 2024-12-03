@@ -54,4 +54,4 @@ let run () =
   let reports = List.map to_report lines in
   let part1 = runPart1 reports in
   let part2 = runPart2 reports in
-  Printf.printf "Day 01: %d %d\n" part1 part2
+  Printf.printf "Day 02: %d %d\n" part1 part2
