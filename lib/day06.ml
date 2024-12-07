@@ -128,4 +128,4 @@ let run () =
   let input = Map.of_string data in
   let part1 = runPart1 input in
   let part2 = runPart2 input in
-  Printf.printf "Day 05: %d %d\n" part1 part2
+  Printf.printf "Day 06: %d %d\n" part1 part2
