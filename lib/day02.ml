@@ -12,7 +12,7 @@ let way_to_string = function
   | Increasing -> "Increasing"
   | Decreasing -> "Decreasing"
 
-let to_report line = 
+let to_report line =
   let parts = String.split_on_char ' ' line in
   let parts = List.filter (fun x -> x <> "") parts in
   List.map int_of_string parts
@@ -24,14 +24,19 @@ let detect_way lst =
 
 let is_safe lst =
   let way = detect_way lst in
-  fst (List.fold_left (fun acc x ->
-    let (r, prev) = acc in
-    if r = false then (false, 0)
-    else
-      match way with
-      | Increasing -> if prev < x && (x - prev) <= 3 then (true, x) else (false, x)
-      | Decreasing -> if prev > x && (prev - x) <= 3 then (true, x) else (false, x)
-  ) (true, List.hd lst) (List.tl lst))
+  fst
+    (List.fold_left
+       (fun acc x ->
+         let r, prev = acc in
+         if r = false then (false, 0)
+         else
+           match way with
+           | Increasing ->
+               if prev < x && x - prev <= 3 then (true, x) else (false, x)
+           | Decreasing ->
+               if prev > x && prev - x <= 3 then (true, x) else (false, x))
+       (true, List.hd lst)
+       (List.tl lst))
 
 let without_i lst excl =
   let indexed = List.mapi (fun i x -> (i, x)) lst in
@@ -44,9 +49,10 @@ let is_safe_removing lst =
     let with_removed = List.mapi (fun i _ -> without_i lst i) lst in
     List.exists is_safe with_removed
 
-let runPart1 = List.fold_left (fun acc x -> acc + if is_safe x then 1 else 0) 0 
+let runPart1 = List.fold_left (fun acc x -> acc + if is_safe x then 1 else 0) 0
 
-let runPart2 = List.fold_left (fun acc x -> acc + if is_safe_removing x then 1 else 0) 0 
+let runPart2 =
+  List.fold_left (fun acc x -> acc + if is_safe_removing x then 1 else 0) 0
 
 let run () =
   let data = read_data_as_string "data/day02.txt" in

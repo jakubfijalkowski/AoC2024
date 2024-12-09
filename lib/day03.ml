@@ -8,21 +8,18 @@ let read_data_as_string filename =
 
 type op = Do | Dont | Mul of int * int
 
-let do_mul op =
-  match op with
-  | Do -> 0
-  | Dont -> 0
-  | Mul (a,b) -> a*b
+let do_mul op = match op with Do -> 0 | Dont -> 0 | Mul (a, b) -> a * b
 
 let do_op (can_do, acc) x =
   match x with
   | Do -> (true, acc)
   | Dont -> (false, acc)
-  | Mul (a,b) -> (can_do, acc + if can_do then a*b else 0)
+  | Mul (a, b) -> (can_do, acc + if can_do then a * b else 0)
 
 let op_of_group g =
   match Re.Group.get g 1 with
-  | "mul" -> Mul (int_of_string (Re.Group.get g 2), int_of_string (Re.Group.get g 3))
+  | "mul" ->
+      Mul (int_of_string (Re.Group.get g 2), int_of_string (Re.Group.get g 3))
   | "do" -> Do
   | "don't" -> Dont
   | _ -> failwith "Invalid op"
@@ -33,7 +30,6 @@ let all_ops s =
   List.map op_of_group e
 
 let runPart1 s = List.fold_left (fun acc x -> acc + do_mul x) 0 (all_ops s)
-
 let runPart2 s = List.fold_left do_op (true, 0) (all_ops s) |> snd
 
 let run () =
