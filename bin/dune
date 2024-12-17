@@ -2,3 +2,8 @@
  (public_name aoc2024)
  (name main)
  (libraries aoc2024 re))
+
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A))))
