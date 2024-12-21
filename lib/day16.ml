@@ -82,18 +82,10 @@ module DirectedPoint = struct
     match Point.compare p1 p2 with 0 -> compare d1 d2 | c -> c
 end
 
-module IntCost = struct
-  type t = int
-
-  let compare = Int.compare
-  let add = Int.add
-  let zero = 0
-end
-
 module Graph = struct
   open Direction
   module DirectedPointMap = Map.Make (DirectedPoint)
-  module Cost = IntCost
+  module Cost = Int
   module Vertex = DirectedPoint
 
   type t = {
