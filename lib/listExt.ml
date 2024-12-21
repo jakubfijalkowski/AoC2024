@@ -34,3 +34,6 @@ let take n l =
     | _ -> List.rev acc
   in
   aux n [] l
+
+let any = List.fold_left ( || ) false
+let any_predicate f = List.fold_left (fun acc e -> acc || f e) false
