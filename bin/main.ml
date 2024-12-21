@@ -1,1 +1,1 @@
-let () = Aoc2024.Day16.run ()
+let () = Aoc2024.Day17.run ()
