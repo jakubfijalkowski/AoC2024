@@ -82,15 +82,22 @@ module DirectedPoint = struct
     match Point.compare p1 p2 with 0 -> compare d1 d2 | c -> c
 end
 
+module IntCost = struct
+  type t = int
+
+  let compare = Int.compare
+  let add = Int.add
+  let zero = 0
+end
+
 module Graph = struct
   open Direction
-  module OpenSet = Psq.Make (DirectedPoint) (Int)
   module DirectedPointMap = Map.Make (DirectedPoint)
-  module DirectedPointSet = Set.Make (DirectedPoint)
-  module PointSet = Set.Make (Point)
+  module Cost = IntCost
+  module Vertex = DirectedPoint
 
   type t = {
-    edges : (int * DirectedPoint.t) list DirectedPointMap.t;
+    edges : (int * Vertex.t) list DirectedPointMap.t;
     width : int;
     height : int;
     start : int * int;
@@ -143,79 +150,52 @@ module Graph = struct
     let edges = edges in
     { edges; width; height; start; finish }
 
-  let find_path_astar graph start finish =
-    let rec run openSet gScore cameFrom =
-      match OpenSet.pop openSet with
-      | None ->
-          ( [
-              (Up, DirectedPointMap.find_opt (finish, Up) gScore);
-              (Right, DirectedPointMap.find_opt (finish, Right) gScore);
-              (Down, DirectedPointMap.find_opt (finish, Down) gScore);
-              (Left, DirectedPointMap.find_opt (finish, Left) gScore);
-            ]
-            |> List.filter_map (fun (d, x) -> Option.map (fun s -> (d, s)) x)
-            |> ListExt.min_by snd,
-            cameFrom )
-      | Some (((current, dir), _), newSet) ->
-          let neighbors = DirectedPointMap.find (current, dir) graph.edges in
-          let curr_score = DirectedPointMap.find (current, dir) gScore in
-          let dirs =
-            neighbors
-            |> List.map (fun (c, dp) -> (curr_score + c, dp))
-            |> List.filter_map (fun (c, dp) ->
-                   match DirectedPointMap.find_opt dp gScore with
-                   | None -> Some (c, dp)
-                   | Some s when c <= s -> Some (c, dp)
-                   | _ -> None)
-          in
-          let new_gScore =
-            List.fold_left
-              (fun acc (c, dp) -> DirectedPointMap.add dp c acc)
-              gScore dirs
-          in
-          let new_openSet =
-            List.fold_left (fun acc (c, dp) -> OpenSet.add dp c acc) newSet dirs
-          in
-          let new_cameFrom =
-            List.fold_left
-              (fun acc (_, dp) ->
-                DirectedPointMap.update dp
-                  (fun e -> Some ((current, dir) :: Option.value ~default:[] e))
-                  acc)
-              cameFrom dirs
-          in
-          run new_openSet new_gScore new_cameFrom
-    in
-    run
-      (OpenSet.sg (start, Right) (Point.distance start start))
-      (DirectedPointMap.singleton (start, Right) 0)
-      DirectedPointMap.empty
+  let estimate_distance (p1, _) (p2, _) = Point.distance p1 p2
+  let neighbors { edges; _ } (p, d) = DirectedPointMap.find (p, d) edges
 end
+
+module GraphSearch = AStar.Make (Graph)
+module DirectedPointSet = Set.Make (DirectedPoint)
+module PointSet = Set.Make (Point)
+
+let select_finish_dir gScore finish =
+  let dirs =
+    Direction.all_dirs
+    |> List.map (fun d ->
+           (d, GraphSearch.VertexMap.find_opt (finish, d) gScore))
+  in
+  List.filter_map (fun (d, x) -> Option.map (fun s -> (d, s)) x) dirs
+  |> ListExt.min_by snd
 
 let runPart1 input =
   let g = Graph.of_input input in
-  Graph.find_path_astar g g.start g.finish |> fst |> Option.get |> fst
+  let gScore = GraphSearch.find_all_paths g (g.start, Direction.Right) |> fst in
+  Direction.all_dirs
+  |> List.filter_map (fun d ->
+         GraphSearch.VertexMap.find_opt (g.finish, d) gScore)
+  |> ListExt.min1
 
 let runPart2 input =
   let g = Graph.of_input input in
-  let finish_dir, came_from = Graph.find_path_astar g g.start g.finish in
+  let gScore, came_from =
+    GraphSearch.find_all_paths g (g.start, Direction.Right)
+  in
+  let finish_dir = select_finish_dir gScore g.finish in
   let finish_dir = Option.get finish_dir |> snd |> fst in
   let rec visit_all visited cameFrom current start =
-    if fst current = start || Graph.DirectedPointSet.mem current visited then
-      visited
+    if fst current = start || DirectedPointSet.mem current visited then visited
     else
-      Graph.DirectedPointMap.find current cameFrom
+      GraphSearch.VertexMap.find current cameFrom
       |> List.fold_left
            (fun acc p ->
-             Graph.DirectedPointSet.union acc (visit_all acc cameFrom p start))
-           (Graph.DirectedPointSet.add current visited)
+             DirectedPointSet.union acc (visit_all acc cameFrom p start))
+           (DirectedPointSet.add current visited)
   in
   let card =
-    visit_all Graph.DirectedPointSet.empty came_from (g.finish, finish_dir)
-      g.start
-    |> Graph.DirectedPointSet.elements
+    visit_all DirectedPointSet.empty came_from (g.finish, finish_dir) g.start
+    |> DirectedPointSet.elements
     |> List.map (fun (p, _) -> p)
-    |> Graph.PointSet.of_list |> Graph.PointSet.cardinal
+    |> PointSet.of_list |> PointSet.cardinal
   in
   card + 1
 
