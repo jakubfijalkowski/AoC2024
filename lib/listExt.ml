@@ -17,6 +17,7 @@ let min_opt = function
   | lst -> Some (List.fold_left min max_int lst)
 
 let min1 = List.fold_left min max_int
+let max1 = List.fold_left max min_int
 
 let min_by f lst =
   let score, e =
@@ -34,6 +35,12 @@ let take n l =
     | _ -> List.rev acc
   in
   aux n [] l
+
+let rec drop n lst =
+  match (n, lst) with
+  | 0, _ -> lst
+  | _, [] -> []
+  | n, _ :: xs -> drop (n - 1) xs
 
 let any = List.fold_left ( || ) false
 let any_predicate f = List.fold_left (fun acc e -> acc || f e) false
