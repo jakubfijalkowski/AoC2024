@@ -4,6 +4,7 @@ module type Cost = sig
   val compare : t -> t -> int
   val add : t -> t -> t
   val zero : t
+  val max_int : t
 end
 
 module type Vertex = sig
@@ -33,6 +34,9 @@ module type S = sig
     map -> vertex -> cost VertexMap.t * vertex list VertexMap.t
 
   val find_path : map -> vertex -> vertex -> (cost * vertex list) Option.t
+
+  val find_path_constrained :
+    map -> cost -> vertex -> vertex -> (cost * vertex list) Option.t
 end
 
 module Make (M : GraphMap) :
@@ -91,48 +95,54 @@ struct
       (VertexMap.singleton start M.Cost.zero)
       VertexMap.empty
 
+  let find_path_constrained graph max_cost start finish =
+    if M.Vertex.compare start finish = 0 then Some (M.Cost.zero, [])
+    else
+      let rec run openSet gScore cameFrom =
+        match OpenSet.pop openSet with
+        | None -> None
+        | Some ((p, _), _) when M.Vertex.compare p finish = 0 ->
+            Some
+              ( VertexMap.find finish gScore,
+                reconstruct_path cameFrom start finish )
+        | Some ((p, _), newSet) ->
+            let neighbors = M.neighbors graph p in
+            let curr_score = VertexMap.find p gScore in
+            let dirs =
+              neighbors
+              |> List.map (fun (c, dp) -> (M.Cost.add curr_score c, dp))
+              |> List.filter (fun (c, _) -> M.Cost.compare c max_cost <= 0)
+              |> List.filter_map (fun (c, dp) ->
+                     match VertexMap.find_opt dp gScore with
+                     | None -> Some (c, dp)
+                     | Some s when M.Cost.compare c s < 0 -> Some (c, dp)
+                     | _ -> None)
+            in
+            let new_gScore =
+              List.fold_left
+                (fun acc (c, dp) -> VertexMap.add dp c acc)
+                gScore dirs
+            in
+            let new_openSet =
+              List.fold_left
+                (fun acc (c, dp) ->
+                  OpenSet.add dp
+                    (M.Cost.add c (M.estimate_distance dp finish))
+                    acc)
+                newSet dirs
+            in
+            let new_cameFrom =
+              List.fold_left
+                (fun acc (_, dp) -> VertexMap.add dp p acc)
+                cameFrom dirs
+            in
+            run new_openSet new_gScore new_cameFrom
+      in
+      run
+        (OpenSet.sg start (M.estimate_distance start start))
+        (VertexMap.singleton start M.Cost.zero)
+        VertexMap.empty
+
   let find_path graph start finish =
-    let rec run openSet gScore cameFrom =
-      match OpenSet.pop openSet with
-      | None -> None
-      | Some ((p, _), _) when M.Vertex.compare p finish = 0 ->
-          Some
-            ( VertexMap.find finish gScore,
-              reconstruct_path cameFrom start finish )
-      | Some ((p, _), newSet) ->
-          let neighbors = M.neighbors graph p in
-          let curr_score = VertexMap.find p gScore in
-          let dirs =
-            neighbors
-            |> List.map (fun (c, dp) -> (M.Cost.add curr_score c, dp))
-            |> List.filter_map (fun (c, dp) ->
-                   match VertexMap.find_opt dp gScore with
-                   | None -> Some (c, dp)
-                   | Some s when M.Cost.compare c s < 0 -> Some (c, dp)
-                   | _ -> None)
-          in
-          let new_gScore =
-            List.fold_left
-              (fun acc (c, dp) -> VertexMap.add dp c acc)
-              gScore dirs
-          in
-          let new_openSet =
-            List.fold_left
-              (fun acc (c, dp) ->
-                OpenSet.add dp
-                  (M.Cost.add c (M.estimate_distance dp finish))
-                  acc)
-              newSet dirs
-          in
-          let new_cameFrom =
-            List.fold_left
-              (fun acc (_, dp) -> VertexMap.add dp p acc)
-              cameFrom dirs
-          in
-          run new_openSet new_gScore new_cameFrom
-    in
-    run
-      (OpenSet.sg start (M.estimate_distance start start))
-      (VertexMap.singleton start M.Cost.zero)
-      VertexMap.empty
+    find_path_constrained graph M.Cost.max_int start finish
 end
