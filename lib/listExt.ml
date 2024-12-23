@@ -28,6 +28,15 @@ let min_by f lst =
   in
   Option.map (fun e -> (score, e)) e
 
+let max_by f lst =
+  let score, e =
+    List.fold_left
+      (fun (prev_max, prev_e) e ->
+        if f e > prev_max then (f e, Some e) else (prev_max, prev_e))
+      (min_int, None) lst
+  in
+  Option.map (fun e -> (score, e)) e
+
 let take n l =
   let rec aux n acc = function
     | [] -> List.rev acc
