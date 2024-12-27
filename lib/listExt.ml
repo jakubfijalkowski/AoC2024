@@ -53,3 +53,8 @@ let rec drop n lst =
 
 let any = List.fold_left ( || ) false
 let any_predicate f = List.fold_left (fun acc e -> acc || f e) false
+
+let rec zip a b =
+  match (a, b) with x :: xs, y :: ys -> (x, y) :: zip xs ys | _ -> []
+
+let pairwise s = zip s (drop 1 s)
