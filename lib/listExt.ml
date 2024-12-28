@@ -58,3 +58,7 @@ let rec zip a b =
   match (a, b) with x :: xs, y :: ys -> (x, y) :: zip xs ys | _ -> []
 
 let pairwise s = zip s (drop 1 s)
+
+let rec pairs = function
+  | [] -> []
+  | x :: xs -> List.map (fun y -> (x, y)) xs @ pairs xs
