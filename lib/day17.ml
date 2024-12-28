@@ -84,6 +84,38 @@ module Program = struct
     match execute_step prg with
     | None -> List.rev prg.output
     | Some new_prg -> run new_prg
+
+  let instr_to_str = function
+    | Adv x -> Printf.sprintf "Adv %10d" x
+    | Bxl x -> Printf.sprintf "Bxl %10d" x
+    | Bst x -> Printf.sprintf "Bst %10d" x
+    | Jnz x -> Printf.sprintf "Jnz %10d" x
+    | Bxc x -> Printf.sprintf "Bxc %10d" x
+    | Out x -> Printf.sprintf "Out %10d" x
+    | Bdv x -> Printf.sprintf "Bdv %10d" x
+    | Cdv x -> Printf.sprintf "Cdv %10d" x
+
+  let state_to_str prg =
+    Printf.sprintf "A=%d, B=%d, C=%d, O=[%s]" prg.reg_a prg.reg_b prg.reg_c
+      (List.rev prg.output |> List.map string_of_int |> String.concat " ")
+
+  let run_dbg prg steps =
+    Printf.printf "Initial: %s\n" (state_to_str prg);
+    let rec aux prg steps =
+      if steps = 0 then Some prg
+      else
+        let instr = parse_instruction prg in
+        Printf.printf "%s " (instr_to_str instr);
+        match execute_step prg with
+        | None ->
+            Printf.printf "(HALT!)\n";
+            None
+        | Some new_prg ->
+            Printf.printf "-> %s\n" (state_to_str new_prg);
+            if new_prg.pc = 0 then Printf.printf "\n";
+            aux new_prg (steps - 1)
+    in
+    aux prg steps
 end
 
 let runPart1 program =
@@ -91,39 +123,35 @@ let runPart1 program =
   output |> List.map string_of_int |> String.concat ","
 
 let runPart2 (program : Program.t) =
-  (*
-   Does not work and I'm lost in the bitwise operations world.
-  *)
-  let dbg_tos result = result |> List.map string_of_int |> String.concat "," in
-  let calc_a coeffs for_n use_n =
-    ArrayExt.foldi_left
-      (fun i acc x -> acc + ((if i = for_n then use_n else x) * ipow 8 i))
-      0 coeffs
-  in
-  let coeffs = Array.make (Array.length program.program) 0 in
-  let find_one i expected =
-    let rec aux attempted =
-      if attempted = 8 then failwith "Not found"
-      else
-        let new_program = { program with reg_a = calc_a coeffs i attempted } in
-        let result = Program.run new_program in
-        Printf.printf "Attempted %d for %d: %s\n" attempted i (dbg_tos result);
-        let result = List.nth_opt result i |> Option.value ~default:(-1) in
-        if result = expected then attempted else aux (attempted + 1)
+  let calc_a coeffs =
+    let padded =
+      List.init (Array.length program.program - List.length coeffs) (fun _ -> 1)
     in
-    let r = aux 0 in
-    Printf.printf "Found %d for %d\n" r i;
-    r
+    padded @ coeffs
+    |> List.mapi (fun i x -> (i, x))
+    |> List.fold_left (fun acc (i, x) -> acc + (x * ipow 8 i)) 0
   in
-  for _ = 0 to 0 do
-    for i = 0 to Array.length program.program - 1 do
-      coeffs.(i) <-
-        find_one i program.program.(Array.length program.program - i - 1)
-    done
-  done;
-  let new_program = { program with reg_a = calc_a coeffs (-1) 0 } in
-  let result = Program.run new_program in
-  result |> List.map string_of_int |> String.concat ","
+  let rec try_find i coeffs =
+    if i = -1 then Some coeffs
+    else
+      let att =
+        List.init 8 (fun x -> x)
+        |> List.filter_map (fun x ->
+               let res =
+                 Program.run { program with reg_a = calc_a (x :: coeffs) }
+               in
+               if
+                 List.length res = Array.length program.program
+                 && List.nth res i = program.program.(i)
+               then try_find (i - 1) (x :: coeffs)
+               else None)
+      in
+      match att with x :: _ -> Some x | _ -> None
+  in
+  let final_coeffs =
+    try_find (Array.length program.program - 1) [] |> Option.get
+  in
+  calc_a final_coeffs
 
 let read_program () =
   let data = read_data_as_string "data/day17.txt" in
@@ -134,4 +162,4 @@ let run () =
   let part1 = runPart1 program in
   let part2 = runPart2 program in
   Printf.printf "Day 17 - part 1: %s\n" part1;
-  Printf.printf "Day 17 - part 2: %s\n" part2
+  Printf.printf "Day 17 - part 2: %d\n" part2
